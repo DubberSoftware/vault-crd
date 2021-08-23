@@ -1,9 +1,12 @@
 FROM gcr.io/distroless/java:8 AS SECURITY
 FROM openjdk:8 AS BUILD
 
-COPY . /opt
 WORKDIR /opt
-RUN ./mvnw clean install -DskipTests
+COPY .mvn/ ./.mvn
+COPY pom.xml mvnw ./
+RUN ./mvnw verify clean --fail-never
+COPY . .
+RUN ./mvnw clean package -DskipTests
 
 ENV JAVA_RANDOM="file:/dev/./urandom"
 

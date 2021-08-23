@@ -9,9 +9,14 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 @Profile("!test")
@@ -32,11 +37,24 @@ public class ScheduledRefresh {
         this.customResource = customResource;
     }
 
+    @Autowired
+    private Environment env;
+
     @Scheduled(fixedRateString = "${kubernetes.interval}000", initialDelayString = "${kubernetes.initial-delay}000")
     public void refreshCertificates() {
         log.info("Start refresh of secret...");
 
-        VaultList list = customResource.inAnyNamespace().list();
+        String watchedNamespace = env.getProperty("kubernetes.watched.namespace");
+        if(watchedNamespace=="") {
+            watchedNamespace=null;
+        }
+        String watchedLabel = env.getProperty("kubernetes.watched.instancelabel");
+        Map<String, String> instanceLabel = new HashMap<>();
+        if(watchedLabel!="") {
+            instanceLabel.put("instance", watchedLabel);
+        }
+
+        VaultList list = customResource.inNamespace(watchedNamespace).withLabels(instanceLabel).list();
         for (Vault resource : list.getItems()) {
             RequiresRefresh requiresRefresh = typeRefreshFactory.get(resource.getSpec().getType().toString());
             try {

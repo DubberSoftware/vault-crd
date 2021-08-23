@@ -9,12 +9,16 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 
 import java.net.HttpURLConnection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Configuration
@@ -36,8 +40,20 @@ public class Watcher {
         return (args) -> run();
     }
 
+    @Autowired
+    private Environment env;
+
     private void run() {
-        customResource.inAnyNamespace().watch(new io.fabric8.kubernetes.client.Watcher<Vault>() {
+        String watchedNamespace = env.getProperty("kubernetes.watched.namespace");
+        if(watchedNamespace=="") {
+            watchedNamespace=null;
+        }
+        String watchedLabel = env.getProperty("kubernetes.watched.instancelabel");
+        Map<String, String> instanceLabel = new HashMap<>();
+        if(watchedLabel!="") {
+            instanceLabel.put("instance", watchedLabel);
+        }
+        customResource.inNamespace(watchedNamespace).withLabels(instanceLabel).watch(new io.fabric8.kubernetes.client.Watcher<Vault>() {
             @Override
             public void eventReceived(Action action, Vault resource) {
                 log.info("Received action: {} for {} in namespace {}", action.name(), resource.getMetadata().getName(), resource.getMetadata().getNamespace());
