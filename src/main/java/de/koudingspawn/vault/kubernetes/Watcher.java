@@ -44,11 +44,11 @@ public class Watcher {
     private Environment env;
 
     private void run() {
-        String watchedNamespace = env.getProperty("kubernetes.watched.namespace");
+        String watchedNamespace = env.getProperty("kubernetes.watched.namespace","");
         if(watchedNamespace=="") {
             watchedNamespace=null;
         }
-        String watchedLabel = env.getProperty("kubernetes.watched.instancelabel");
+        String watchedLabel = env.getProperty("kubernetes.watched.instancelabel","");
         Map<String, String> instanceLabel = new HashMap<>();
         if(watchedLabel!="") {
             instanceLabel.put("instance", watchedLabel);
