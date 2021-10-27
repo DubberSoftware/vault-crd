@@ -4,6 +4,7 @@ import de.koudingspawn.vault.crd.DoneableVault;
 import de.koudingspawn.vault.crd.Vault;
 import de.koudingspawn.vault.crd.VaultList;
 import de.koudingspawn.vault.kubernetes.EventHandler;
+import de.koudingspawn.vault.kubernetes.event.EventNotification;
 import de.koudingspawn.vault.vault.communication.SecretNotAccessibleException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
+import static de.koudingspawn.vault.kubernetes.event.EventType.MODIFICATION_FAILED;
 
 @Component
 @Profile("!test")
@@ -26,14 +28,16 @@ public class ScheduledRefresh {
 
     private final TypeRefreshFactory typeRefreshFactory;
     private final EventHandler eventHandler;
+    private final EventNotification eventNotification;
     private final MixedOperation<Vault, VaultList, DoneableVault, Resource<Vault, DoneableVault>> customResource;
 
     public ScheduledRefresh(
             EventHandler eventHandler,
             TypeRefreshFactory typeRefreshFactory,
-            MixedOperation<Vault, VaultList, DoneableVault, Resource<Vault, DoneableVault>> customResource) {
+            EventNotification eventNotification, MixedOperation<Vault, VaultList, DoneableVault, Resource<Vault, DoneableVault>> customResource) {
         this.typeRefreshFactory = typeRefreshFactory;
         this.eventHandler = eventHandler;
+        this.eventNotification = eventNotification;
         this.customResource = customResource;
     }
 
@@ -63,13 +67,13 @@ public class ScheduledRefresh {
                 }
             } catch (SecretNotAccessibleException e) {
                 log.info("Refresh of secret {} in namespace {} failed with exception", resource.getMetadata().getName(), resource.getMetadata().getNamespace(), e);
+
+                eventNotification.storeNewEvent(MODIFICATION_FAILED, "Modification of secret failed with exception " + e.getMessage(), resource);
             }
         }
 
         log.info("Finished refresh of secret...");
 
     }
-
-
 
 }
